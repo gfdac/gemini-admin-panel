@@ -43,6 +43,8 @@ const rateLimit = require('express-rate-limit');
 const { config } = require('./config/env');
 const logger = require('./utils/logger');
 const routes = require('./routes');
+const redisService = require('./config/redis');
+const { initializeDefaultUsers } = require('./controllers/authController');
 
 const app = express();
 
@@ -78,6 +80,35 @@ app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path} - ${req.ip}`);
   next();
 });
+
+// Initialize Redis connection and default users
+const initializeApp = async () => {
+  try {
+    // Connect to Redis
+    await redisService.connect();
+    logger.info('Redis connection established');
+
+    // Initialize default users
+    await initializeDefaultUsers();
+    logger.info('Default users initialized');
+
+  } catch (error) {
+    logger.error('Failed to initialize app', {
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Don't exit in development for easier debugging
+    if (config.nodeEnv === 'production') {
+      process.exit(1);
+    } else {
+      logger.warn('Continuing without Redis in development mode');
+    }
+  }
+};
+
+// Call initialization
+initializeApp();
 
 // Routes
 app.use('/api', routes);

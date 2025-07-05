@@ -1,10 +1,14 @@
 const { callGeminiAPI } = require('../services/geminiService');
 const logger = require('../utils/logger');
+const userService = require('../services/userService');
+const requestService = require('../services/requestService');
 
-// PROMPT PARA COPILOT: Criar controller processGeminiRequest que orquestra a chamada ao serviço Gemini 
-// e retorna a resposta formatada (status, data, originalPrompt, geminiResponse, timestamp)
+// PROMPT PARA COPILOT: Controller para processar requisições ao Gemini com logging real
 
 const processGeminiRequest = async (req, res) => {
+  const startTime = Date.now();
+  let requestId = null;
+  
   try {
     const { prompt, temperature, maxOutputTokens } = req.body;
     const userId = req.user.id;
@@ -18,68 +22,148 @@ const processGeminiRequest = async (req, res) => {
       maxOutputTokens
     });
 
-    const startTime = Date.now();
+    // Check user API usage and limits
+    const user = await userService.getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
 
-    // Call Gemini API through service
-    const geminiResult = await callGeminiAPI(prompt, {
-      temperature,
-      maxOutputTokens
-    });
-
-    const endTime = Date.now();
-    const processingTime = endTime - startTime;
-
-    if (geminiResult.success) {
-      logger.info('Gemini request successful', {
+    if (user.apiUsed >= user.apiLimit) {
+      const responseTime = Date.now() - startTime;
+      
+      // Log failed request
+      await requestService.logRequest({
         userId,
         username,
-        processingTime,
-        responseLength: geminiResult.response.length
-      });
-
-      res.json({
-        status: 'success',
-        message: 'Gemini response generated successfully',
-        data: {
-          originalPrompt: prompt,
-          geminiResponse: geminiResult.response,
-          metadata: {
-            ...geminiResult.metadata,
-            processingTime,
-            userId,
-            username,
-            timestamp: new Date().toISOString()
-          }
-        }
-      });
-    } else {
-      logger.error('Gemini request failed', {
-        userId,
-        username,
-        error: geminiResult.error,
-        statusCode: geminiResult.statusCode,
-        processingTime
-      });
-
-      res.status(geminiResult.statusCode || 500).json({
+        endpoint: '/api/gemini',
         status: 'error',
-        message: geminiResult.error || 'Failed to generate response',
+        statusCode: 429,
+        responseTime,
+        prompt,
+        error: 'API usage limit exceeded',
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
+      return res.status(429).json({
+        status: 'error',
+        message: 'API usage limit exceeded',
         data: {
-          originalPrompt: prompt,
-          error: geminiResult.error,
-          timestamp: new Date().toISOString(),
-          processingTime
+          currentUsage: user.apiUsed,
+          limit: user.apiLimit,
+          resetDate: user.plan === 'free' ? 'Monthly reset' : 'Contact admin'
         }
       });
     }
 
+    // Call Gemini API
+    const geminiResponse = await callGeminiAPI(prompt, {
+      temperature,
+      maxOutputTokens
+    });
+
+    const responseTime = Date.now() - startTime;
+    const tokens = geminiResponse.usageMetadata?.totalTokenCount || 0;
+
+    // Update user API usage
+    await userService.incrementApiUsage(userId, tokens);
+
+    // Update user stats
+    await userService.updateUserStats(userId, {
+      lastRequestTime: new Date().toISOString()
+    });
+
+    // Log successful request
+    const logEntry = await requestService.logRequest({
+      userId,
+      username,
+      endpoint: '/api/gemini',
+      status: 'success',
+      statusCode: 200,
+      responseTime,
+      prompt,
+      response: geminiResponse.text,
+      model: 'gemini-1.5-flash',
+      tokens,
+      inputTokens: geminiResponse.usageMetadata?.promptTokenCount || 0,
+      outputTokens: geminiResponse.usageMetadata?.candidatesTokenCount || 0,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      sessionId: req.sessionID
+    });
+
+    requestId = logEntry.id;
+
+    // Add user activity
+    await userService.addActivityLog(userId, {
+      action: 'gemini_request',
+      details: `Made Gemini request with ${prompt.length} characters`,
+      metadata: {
+        tokens,
+        responseTime,
+        model: 'gemini-1.5-flash'
+      }
+    });
+
+    logger.info('Gemini request completed', {
+      userId,
+      username,
+      requestId,
+      responseTime,
+      tokens,
+      success: true
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Gemini request processed successfully',
+      data: {
+        originalPrompt: prompt,
+        geminiResponse: geminiResponse.text,
+        timestamp: new Date().toISOString(),
+        requestId,
+        usage: {
+          tokens,
+          inputTokens: geminiResponse.usageMetadata?.promptTokenCount || 0,
+          outputTokens: geminiResponse.usageMetadata?.candidatesTokenCount || 0,
+          responseTime
+        },
+        userUsage: {
+          current: user.apiUsed + 1,
+          limit: user.apiLimit,
+          remaining: user.apiLimit - (user.apiUsed + 1)
+        }
+      }
+    });
+
   } catch (error) {
-    logger.error('Gemini controller error', {
+    const responseTime = Date.now() - startTime;
+    
+    // Log failed request
+    if (req.user) {
+      await requestService.logRequest({
+        userId: req.user.id,
+        username: req.user.username,
+        endpoint: '/api/gemini',
+        status: 'error',
+        statusCode: 500,
+        responseTime,
+        prompt: req.body.prompt,
+        error: error.message,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      }).catch(logError => {
+        logger.error('Failed to log failed request', { logError: logError.message });
+      });
+    }
+
+    logger.error('Gemini request failed', {
       userId: req.user?.id,
       username: req.user?.username,
       error: error.message,
       stack: error.stack,
-      ip: req.ip
+      ip: req.ip,
+      responseTime
     });
 
     res.status(500).json({
@@ -88,25 +172,45 @@ const processGeminiRequest = async (req, res) => {
       data: {
         originalPrompt: req.body.prompt,
         timestamp: new Date().toISOString(),
+        requestId,
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       }
     });
   }
 };
 
-// Get user's Gemini usage statistics (bonus feature)
+// Get user's Gemini usage statistics
 const getGeminiStats = async (req, res) => {
   try {
     const userId = req.user.id;
     const username = req.user.username;
 
-    // In a real application, you would fetch this from a database
-    const mockStats = {
-      totalRequests: 42,
-      totalTokensUsed: 15680,
-      averageResponseTime: 2.3,
-      lastRequestTime: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-      favoriteTopics: ['coding', 'AI', 'science']
+    // Get user stats from Redis
+    const userStats = await userService.getUserStats(userId);
+    const user = await userService.getUserById(userId);
+
+    // Get recent requests
+    const recentRequests = await requestService.getUserRequestHistory(userId, 10);
+
+    const stats = {
+      totalRequests: userStats.totalRequests,
+      totalTokensUsed: userStats.tokensUsed,
+      averageResponseTime: userStats.avgResponseTime,
+      lastRequestTime: userStats.lastRequestTime,
+      favoriteModels: userStats.favoriteModels || ['gemini-1.5-flash'],
+      successRate: userStats.totalRequests > 0 ? 
+        ((userStats.successCount / userStats.totalRequests) * 100).toFixed(1) : '100',
+      currentUsage: user?.apiUsed || 0,
+      usageLimit: user?.apiLimit || 1000,
+      usagePercentage: user ? ((user.apiUsed / user.apiLimit) * 100).toFixed(1) : '0',
+      plan: user?.plan || 'free',
+      recentRequests: recentRequests.map(req => ({
+        id: req.id,
+        timestamp: req.timestamp,
+        status: req.status,
+        responseTime: req.responseTime,
+        tokens: req.tokens
+      }))
     };
 
     logger.info('Gemini stats requested', { userId, username });
@@ -119,7 +223,7 @@ const getGeminiStats = async (req, res) => {
           id: userId,
           username
         },
-        stats: mockStats,
+        stats,
         timestamp: new Date().toISOString()
       }
     });

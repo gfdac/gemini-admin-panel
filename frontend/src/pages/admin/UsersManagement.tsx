@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Alert from '../../components/Alert';
+import { adminApi } from '../../services/api';
 
 // PROMPT PARA COPILOT: Gerenciamento completo de usuários
 // Visualizar, editar, criar, desativar usuários, histórico, permissões
 
 interface User {
-  id: number;
+  id: string;
   username: string;
-  email: string;
+  email?: string;
   role: 'admin' | 'user' | 'premium';
   status: 'active' | 'inactive' | 'banned';
   createdAt: string;
-  lastLogin: string;
+  lastLogin?: string;
   totalRequests: number;
   tokensUsed: number;
-  plan: 'free' | 'premium' | 'enterprise';
-  apiLimit: number;
+  plan?: 'free' | 'premium' | 'enterprise';
+  apiLimit?: number;
   apiUsed: number;
 }
 
@@ -45,130 +46,101 @@ const UsersManagement: React.FC = () => {
     loadUsers();
   }, []);
 
-  const loadUsers = () => {
-    // Simulando dados para demonstração
-    setTimeout(() => {
-      setUsers([
-        {
-          id: 1,
-          username: 'admin',
-          email: 'admin@example.com',
-          role: 'admin',
-          status: 'active',
-          createdAt: '2025-01-01',
-          lastLogin: '2025-07-05T15:30:00Z',
-          totalRequests: 1250,
-          tokensUsed: 89420,
-          plan: 'enterprise',
-          apiLimit: 50000,
-          apiUsed: 1250
-        },
-        {
-          id: 2,
-          username: 'user',
-          email: 'user@example.com',
-          role: 'user',
-          status: 'active',
-          createdAt: '2025-02-15',
-          lastLogin: '2025-07-05T10:15:00Z',
-          totalRequests: 456,
-          tokensUsed: 23580,
-          plan: 'free',
-          apiLimit: 1000,
-          apiUsed: 456
-        },
-        {
-          id: 3,
-          username: 'premium_user',
-          email: 'premium@example.com',
-          role: 'premium',
-          status: 'active',
-          createdAt: '2025-03-20',
-          lastLogin: '2025-07-04T18:45:00Z',
-          totalRequests: 2840,
-          tokensUsed: 156790,
-          plan: 'premium',
-          apiLimit: 10000,
-          apiUsed: 2840
-        },
-        {
-          id: 4,
-          username: 'inactive_user',
-          email: 'inactive@example.com',
-          role: 'user',
-          status: 'inactive',
-          createdAt: '2025-04-10',
-          lastLogin: '2025-06-20T09:30:00Z',
-          totalRequests: 89,
-          tokensUsed: 4560,
-          plan: 'free',
-          apiLimit: 1000,
-          apiUsed: 89
-        }
-      ]);
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await adminApi.getUsers();
+      
+      if (response.status === 'success') {
+        setUsers(response.data || []);
+      } else {
+        setError(response.message || 'Erro ao carregar usuários');
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar usuários:', err);
+      setError(err.response?.data?.message || 'Erro ao conectar com o servidor');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+                         (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
     
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.username || !newUser.email || !newUser.password) {
       setError('Todos os campos são obrigatórios');
       return;
     }
 
-    const user: User = {
-      id: users.length + 1,
-      username: newUser.username,
-      email: newUser.email,
-      role: newUser.role,
-      status: 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-      lastLogin: 'Nunca',
-      totalRequests: 0,
-      tokensUsed: 0,
-      plan: newUser.plan,
-      apiLimit: newUser.apiLimit,
-      apiUsed: 0
-    };
-
-    setUsers([...users, user]);
-    setNewUser({ username: '', email: '', password: '', role: 'user', plan: 'free', apiLimit: 1000 });
-    setShowAddForm(false);
-    setSuccess('Usuário criado com sucesso!');
-  };
-
-  const toggleUserStatus = (id: number) => {
-    setUsers(users.map(user => 
-      user.id === id 
-        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-        : user
-    ));
-    setSuccess('Status do usuário atualizado!');
-  };
-
-  const deleteUser = (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-      setUsers(users.filter(user => user.id !== id));
-      setSuccess('Usuário removido com sucesso!');
+    try {
+      setLoading(true);
+      const response = await adminApi.createUser(newUser);
+      
+      if (response.status === 'success') {
+        setNewUser({ username: '', email: '', password: '', role: 'user', plan: 'free', apiLimit: 1000 });
+        setShowAddForm(false);
+        setSuccess('Usuário criado com sucesso!');
+        await loadUsers(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao criar usuário');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao criar usuário');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetUserLimits = (id: number) => {
-    setUsers(users.map(user => 
-      user.id === id 
-        ? { ...user, apiUsed: 0, tokensUsed: 0 }
-        : user
-    ));
-    setSuccess('Limites do usuário resetados!');
+  const toggleUserStatus = async (id: string) => {
+    try {
+      const response = await adminApi.toggleUserStatus(id);
+      
+      if (response.status === 'success') {
+        setSuccess('Status do usuário atualizado!');
+        await loadUsers(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao atualizar status');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao atualizar status');
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este usuário?')) {
+      return;
+    }
+
+    try {
+      const response = await adminApi.deleteUser(id);
+      
+      if (response.status === 'success') {
+        setSuccess('Usuário removido com sucesso!');
+        await loadUsers(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao remover usuário');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao remover usuário');
+    }
+  };
+
+  const resetUserLimits = async (id: string) => {
+    try {
+      // Implementar endpoint específico se necessário
+      setSuccess('Funcionalidade em desenvolvimento');
+    } catch (err: any) {
+      setError('Erro ao resetar limites');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -462,24 +434,24 @@ const UsersManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPlanColor(user.plan)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPlanColor(user.plan || 'free')}`}>
                         {user.plan === 'enterprise' ? 'Enterprise' : user.plan === 'premium' ? 'Premium' : 'Gratuito'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>
-                        <div>{user.apiUsed.toLocaleString()} / {user.apiLimit.toLocaleString()}</div>
+                        <div>{user.apiUsed.toLocaleString()} / {(user.apiLimit || 1000).toLocaleString()}</div>
                         <div className="text-gray-500">{user.tokensUsed.toLocaleString()} tokens</div>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div 
                             className="bg-blue-600 h-2 rounded-full" 
-                            style={{width: `${Math.min((user.apiUsed / user.apiLimit) * 100, 100)}%`}}
+                            style={{width: `${Math.min((user.apiUsed / (user.apiLimit || 1000)) * 100, 100)}%`}}
                           ></div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.lastLogin === 'Nunca' ? 'Nunca' : new Date(user.lastLogin).toLocaleString('pt-BR')}
+                      {!user.lastLogin ? 'Nunca' : new Date(user.lastLogin).toLocaleString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="space-y-1">

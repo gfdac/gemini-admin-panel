@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Alert from '../../components/Alert';
+import { adminApi } from '../../services/api';
 
 // PROMPT PARA COPILOT: Gerenciamento completo de chaves API do Gemini
 // Múltiplas chaves, rotação, monitoramento de uso, configuração de modelos
@@ -11,32 +12,32 @@ interface ApiKey {
   key: string;
   status: 'active' | 'inactive' | 'expired' | 'limited' | 'warning';
   model: 'gemini-1.5-flash' | 'gemini-1.5-pro' | 'gemini-pro';
-  priority: number; // Para load balancing
-  region: string;
-  environment: 'production' | 'staging' | 'development';
-  usage: {
+  priority?: number; // Para load balancing
+  region?: string;
+  environment?: 'production' | 'staging' | 'development';
+  usage?: {
     requests: number;
     tokens: number;
     limit: number;
-    resetDate: string;
+    resetDate?: string;
     errors: number;
-    avgResponseTime: number;
+    avgResponseTime?: number;
   };
-  health: {
-    lastCheck: string;
-    uptime: number;
-    errorRate: number;
+  health?: {
+    lastCheck?: string;
+    uptime?: number;
+    errorRate?: number;
     status: 'healthy' | 'degraded' | 'unhealthy';
   };
-  config: {
-    autoRotate: boolean;
-    maxRetries: number;
-    timeout: number;
-    rateLimit: number;
+  config?: {
+    autoRotate?: boolean;
+    maxRetries?: number;
+    timeout?: number;
+    rateLimit?: number;
   };
   createdAt: string;
-  lastUsed: string;
-  tags: string[];
+  lastUsed?: string;
+  tags?: string[];
 }
 
 const ApiKeysManagement: React.FC = () => {
@@ -62,182 +63,110 @@ const ApiKeysManagement: React.FC = () => {
     loadApiKeys();
   }, []);
 
-  const loadApiKeys = () => {
-    // Simulando dados para demonstração
-    setTimeout(() => {
-      setApiKeys([
-        {
-          id: '1',
-          name: 'Produção Principal',
-          key: 'AIzaSyDGivgsIx4L_E1swuNIWnmDPfSNnlWNDLs',
-          status: 'active',
-          model: 'gemini-1.5-flash',
-          priority: 1,
-          region: 'us-central1',
-          environment: 'production',
-          usage: {
-            requests: 847,
-            tokens: 45230,
-            limit: 10000,
-            resetDate: '2025-08-01',
-            errors: 12,
-            avgResponseTime: 1.8
-          },
-          health: {
-            lastCheck: '2025-07-05T15:30:00Z',
-            uptime: 99.9,
-            errorRate: 1.4,
-            status: 'healthy'
-          },
-          config: {
-            autoRotate: true,
-            maxRetries: 3,
-            timeout: 30,
-            rateLimit: 60
-          },
-          createdAt: '2025-01-15',
-          lastUsed: '2025-07-05T15:30:00Z',
-          tags: ['production', 'high-priority', 'load-balanced']
-        },
-        {
-          id: '2',
-          name: 'Desenvolvimento',
-          key: 'AIzaSyB*********************',
-          status: 'active',
-          model: 'gemini-1.5-pro',
-          priority: 2,
-          region: 'us-west1',
-          environment: 'development',
-          usage: {
-            requests: 156,
-            tokens: 8940,
-            limit: 5000,
-            resetDate: '2025-08-01',
-            errors: 3,
-            avgResponseTime: 2.1
-          },
-          health: {
-            lastCheck: '2025-07-04T09:15:00Z',
-            uptime: 98.5,
-            errorRate: 1.9,
-            status: 'healthy'
-          },
-          config: {
-            autoRotate: false,
-            maxRetries: 2,
-            timeout: 25,
-            rateLimit: 30
-          },
-          createdAt: '2025-02-01',
-          lastUsed: '2025-07-04T09:15:00Z',
-          tags: ['development', 'testing']
-        },
-        {
-          id: '3',
-          name: 'Backup',
-          key: 'AIzaSyC*********************',
-          status: 'warning',
-          model: 'gemini-pro',
-          priority: 3,
-          region: 'europe-west1',
-          environment: 'production',
-          usage: {
-            requests: 23,
-            tokens: 1250,
-            limit: 2000,
-            resetDate: '2025-08-01',
-            errors: 8,
-            avgResponseTime: 4.2
-          },
-          health: {
-            lastCheck: '2025-06-20T14:22:00Z',
-            uptime: 87.3,
-            errorRate: 34.8,
-            status: 'degraded'
-          },
-          config: {
-            autoRotate: true,
-            maxRetries: 5,
-            timeout: 45,
-            rateLimit: 20
-          },
-          createdAt: '2025-03-10',
-          lastUsed: '2025-06-20T14:22:00Z',
-          tags: ['backup', 'fallback']
-        }
-      ]);
+  const loadApiKeys = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await adminApi.getApiKeys();
+      
+      if (response.status === 'success') {
+        setApiKeys(response.data || []);
+      } else {
+        setError(response.message || 'Erro ao carregar chaves API');
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar chaves API:', err);
+      setError(err.response?.data?.message || 'Erro ao conectar com o servidor');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleAddKey = () => {
+  const handleAddKey = async () => {
     if (!newKey.name || !newKey.key) {
       setError('Nome e chave são obrigatórios');
       return;
     }
 
-    const newApiKey: ApiKey = {
-      id: (apiKeys.length + 1).toString(),
-      name: newKey.name,
-      key: newKey.key,
-      status: 'active',
-      model: newKey.model,
-      priority: newKey.priority,
-      region: newKey.region,
-      environment: newKey.environment,
-      usage: {
-        requests: 0,
-        tokens: 0,
-        limit: newKey.limit,
-        resetDate: '2025-08-01',
-        errors: 0,
-        avgResponseTime: 0
-      },
-      health: {
-        lastCheck: new Date().toISOString(),
-        uptime: 100,
-        errorRate: 0,
-        status: 'healthy'
-      },
-      config: {
-        autoRotate: true,
-        maxRetries: 3,
-        timeout: 30,
-        rateLimit: 60
-      },
-      createdAt: new Date().toISOString().split('T')[0],
-      lastUsed: 'Nunca',
-      tags: newKey.tags
-    };
-
-    setApiKeys([...apiKeys, newApiKey]);
-    setNewKey({ 
-      name: '', 
-      key: '', 
-      model: 'gemini-1.5-flash', 
-      limit: 1000,
-      environment: 'development',
-      region: 'us-central1',
-      priority: 1,
-      tags: []
-    });
-    setShowAddForm(false);
-    setSuccess('Chave API adicionada com sucesso!');
+    try {
+      setLoading(true);
+      const response = await adminApi.createApiKey(newKey);
+      
+      if (response.status === 'success') {
+        setNewKey({ 
+          name: '', 
+          key: '', 
+          model: 'gemini-1.5-flash', 
+          priority: 1, 
+          region: 'us-central1', 
+          environment: 'development',
+          limit: 1000,
+          tags: []
+        });
+        setShowAddForm(false);
+        setSuccess('Chave API criada com sucesso!');
+        await loadApiKeys(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao criar chave API');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao criar chave API');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleKeyStatus = (id: string) => {
-    setApiKeys(apiKeys.map(key => 
-      key.id === id 
-        ? { ...key, status: key.status === 'active' ? 'inactive' : 'active' }
-        : key
-    ));
-    setSuccess('Status da chave atualizado!');
+  const toggleKeyStatus = async (id: string) => {
+    try {
+      const response = await adminApi.toggleApiKeyStatus(id);
+      
+      if (response.status === 'success') {
+        setSuccess('Status da chave atualizado!');
+        await loadApiKeys(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao atualizar status');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao atualizar status');
+    }
   };
 
-  const deleteKey = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta chave?')) {
-      setApiKeys(apiKeys.filter(key => key.id !== id));
-      setSuccess('Chave API removida com sucesso!');
+  const rotateKey = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja rotar esta chave? A chave atual será invalidada.')) {
+      return;
+    }
+
+    try {
+      const response = await adminApi.rotateApiKey(id);
+      
+      if (response.status === 'success') {
+        setSuccess('Chave rotacionada com sucesso!');
+        await loadApiKeys(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao rotar chave');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao rotar chave');
+    }
+  };
+
+  const deleteKey = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta chave?')) {
+      return;
+    }
+
+    try {
+      const response = await adminApi.deleteApiKey(id);
+      
+      if (response.status === 'success') {
+        setSuccess('Chave removida com sucesso!');
+        await loadApiKeys(); // Recarregar lista
+      } else {
+        setError(response.message || 'Erro ao remover chave');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao remover chave');
     }
   };
 
@@ -427,18 +356,18 @@ const ApiKeysManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>
-                        <div>{apiKey.usage.requests.toLocaleString()} requisições</div>
-                        <div className="text-gray-500">{apiKey.usage.tokens.toLocaleString()} tokens</div>
+                        <div>{(apiKey.usage?.requests || 0).toLocaleString()} requisições</div>
+                        <div className="text-gray-500">{(apiKey.usage?.tokens || 0).toLocaleString()} tokens</div>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div 
                             className="bg-blue-600 h-2 rounded-full" 
-                            style={{width: `${(apiKey.usage.requests / apiKey.usage.limit) * 100}%`}}
+                            style={{width: `${Math.min(((apiKey.usage?.requests || 0) / (apiKey.usage?.limit || 1000)) * 100, 100)}%`}}
                           ></div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {apiKey.lastUsed === 'Nunca' ? 'Nunca' : new Date(apiKey.lastUsed).toLocaleString('pt-BR')}
+                      {!apiKey.lastUsed ? 'Nunca' : new Date(apiKey.lastUsed).toLocaleString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button

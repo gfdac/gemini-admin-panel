@@ -129,4 +129,119 @@ export const healthApi = {
   },
 };
 
+// Admin API functions
+export const adminApi = {
+  // Dashboard
+  getDashboard: async (): Promise<any> => {
+    const response = await api.get('/admin/dashboard');
+    return response.data;
+  },
+
+  // Users management
+  getUsers: async (): Promise<any> => {
+    const response = await api.get('/admin/users');
+    return response.data;
+  },
+
+  getUserStats: async (userId: string): Promise<any> => {
+    const response = await api.get(`/admin/users/${userId}/stats`);
+    return response.data;
+  },
+
+  createUser: async (userData: any): Promise<any> => {
+    const response = await api.post('/admin/users', userData);
+    return response.data;
+  },
+
+  updateUser: async (userId: string, userData: any): Promise<any> => {
+    const response = await api.put(`/admin/users/${userId}`, userData);
+    return response.data;
+  },
+
+  deleteUser: async (userId: string): Promise<any> => {
+    const response = await api.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  toggleUserStatus: async (userId: string): Promise<any> => {
+    const response = await api.post(`/admin/users/${userId}/toggle-status`);
+    return response.data;
+  },
+
+  // API Keys management
+  getApiKeys: async (): Promise<any> => {
+    const response = await api.get('/admin/keys');
+    return response.data;
+  },
+
+  createApiKey: async (keyData: any): Promise<any> => {
+    const response = await api.post('/admin/keys', keyData);
+    return response.data;
+  },
+
+  updateApiKey: async (keyId: string, keyData: any): Promise<any> => {
+    const response = await api.put(`/admin/keys/${keyId}`, keyData);
+    return response.data;
+  },
+
+  deleteApiKey: async (keyId: string): Promise<any> => {
+    const response = await api.delete(`/admin/keys/${keyId}`);
+    return response.data;
+  },
+
+  rotateApiKey: async (keyId: string): Promise<any> => {
+    const response = await api.post(`/admin/keys/${keyId}/rotate`);
+    return response.data;
+  },
+
+  toggleApiKeyStatus: async (keyId: string): Promise<any> => {
+    const response = await api.post(`/admin/keys/${keyId}/toggle-status`);
+    return response.data;
+  },
+
+  getApiKeyStats: async (keyId: string): Promise<any> => {
+    const response = await api.get(`/admin/keys/${keyId}/stats`);
+    return response.data;
+  },
+
+  // Requests history
+  getRequests: async (params?: any): Promise<any> => {
+    const response = await api.get('/admin/requests', { params });
+    return response.data;
+  },
+
+  deleteRequest: async (requestId: string): Promise<any> => {
+    const response = await api.delete(`/admin/requests/${requestId}`);
+    return response.data;
+  },
+
+  // System settings
+  getSettings: async (): Promise<any> => {
+    const response = await api.get('/admin/settings');
+    return response.data;
+  },
+
+  updateSettings: async (settings: any): Promise<any> => {
+    const response = await api.put('/admin/settings', settings);
+    return response.data;
+  },
+
+  // Stats and monitoring
+  getStats: async (): Promise<any> => {
+    const response = await api.get('/admin/stats');
+    return response.data;
+  },
+
+  getSystemHealth: async (): Promise<any> => {
+    const response = await api.get('/admin/health');
+    return response.data;
+  },
+
+  // Real-time monitoring
+  getRealtimeStats: async (): Promise<any> => {
+    const response = await api.get('/admin/realtime');
+    return response.data;
+  }
+};
+
 export default api;
