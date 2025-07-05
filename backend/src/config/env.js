@@ -1,7 +1,9 @@
 const dotenv = require('dotenv');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables only in development
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const config = {
   port: process.env.PORT || 3001,
@@ -17,8 +19,10 @@ const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
   console.error('Missing required environment variables:', missingVars);
+  console.warn('Available env vars:', Object.keys(process.env).filter(key => key.includes('JWT') || key.includes('GEMINI')));
   if (config.nodeEnv === 'production') {
-    process.exit(1);
+    console.warn('In production - continuing without some env vars for debugging');
+    // process.exit(1); // Comentado para debug
   }
 }
 
