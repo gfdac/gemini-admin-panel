@@ -43,8 +43,15 @@ const rateLimit = require('express-rate-limit');
 const { config } = require('./config/env');
 const logger = require('./utils/logger');
 const routes = require('./routes');
-const redisService = require('./config/redis');
 const { initializeDefaultUsers } = require('./controllers/authController');
+
+// Import Redis conditionally to avoid errors if not available
+let redisService = null;
+try {
+  redisService = require('./config/redis');
+} catch (error) {
+  logger.warn('Redis module not available, will continue without Redis:', error.message);
+}
 
 const app = express();
 
@@ -84,13 +91,17 @@ app.use((req, res, next) => {
 // Initialize Redis connection and default users
 const initializeApp = async () => {
   try {
-    // Connect to Redis
-    await redisService.connect();
-    logger.info('Redis connection established');
+    // Connect to Redis if available
+    if (redisService) {
+      await redisService.connect();
+      logger.info('Redis connection established');
 
-    // Initialize default users
-    await initializeDefaultUsers();
-    logger.info('Default users initialized');
+      // Initialize default users
+      await initializeDefaultUsers();
+      logger.info('Default users initialized');
+    } else {
+      logger.warn('Redis not available, skipping Redis initialization');
+    }
 
   } catch (error) {
     logger.error('Failed to initialize app', {
@@ -100,6 +111,7 @@ const initializeApp = async () => {
     
     // Don't exit in development for easier debugging
     if (config.nodeEnv === 'production') {
+      logger.error('Production mode: exiting due to initialization failure');
       process.exit(1);
     } else {
       logger.warn('Continuing without Redis in development mode');

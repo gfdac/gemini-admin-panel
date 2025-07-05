@@ -9,6 +9,11 @@ class RedisService {
 
   async connect() {
     try {
+      // Verificar se as variáveis de ambiente estão disponíveis
+      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+        throw new Error('Redis environment variables (KV_REST_API_URL, KV_REST_API_TOKEN) are not configured');
+      }
+
       // Configuração para Upstash Redis
       this.client = new Redis({
         url: process.env.KV_REST_API_URL,
