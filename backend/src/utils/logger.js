@@ -26,25 +26,27 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   defaultMeta: { service: 'gemini-api' },
-  transports: [
-    // Write all logs with level `error` and below to `error.log`
-    new winston.transports.File({ 
-      filename: path.join(process.cwd(), 'logs', 'error.log'), 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    }),
-    // Write all logs to `combined.log`
-    new winston.transports.File({ 
-      filename: path.join(process.cwd(), 'logs', 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ]
+  transports: []
 });
 
-// If we're not in production, also log to the console
-if (process.env.NODE_ENV !== 'production') {
+// In production (Vercel), only use console logging
+if (process.env.NODE_ENV === 'production') {
+  logger.add(new winston.transports.Console({
+    format: consoleFormat
+  }));
+} else {
+  // In development, use both file and console logging
+  logger.add(new winston.transports.File({ 
+    filename: path.join(process.cwd(), 'logs', 'error.log'), 
+    level: 'error',
+    maxsize: 5242880, // 5MB
+    maxFiles: 5
+  }));
+  logger.add(new winston.transports.File({ 
+    filename: path.join(process.cwd(), 'logs', 'combined.log'),
+    maxsize: 5242880, // 5MB
+    maxFiles: 5
+  }));
   logger.add(new winston.transports.Console({
     format: consoleFormat
   }));
