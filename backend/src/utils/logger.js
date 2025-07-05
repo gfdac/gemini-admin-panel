@@ -21,35 +21,44 @@ const consoleFormat = winston.format.combine(
   })
 );
 
-// Create logger instance
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  defaultMeta: { service: 'gemini-api' },
-  transports: []
-});
+// Create logger instance based on environment
+let logger;
 
-// In production (Vercel), only use console logging
 if (process.env.NODE_ENV === 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
+  // Production (Vercel): Only console logging
+  logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: logFormat,
+    defaultMeta: { service: 'gemini-api' },
+    transports: [
+      new winston.transports.Console({
+        format: consoleFormat
+      })
+    ]
+  });
 } else {
-  // In development, use both file and console logging
-  logger.add(new winston.transports.File({ 
-    filename: path.join(process.cwd(), 'logs', 'error.log'), 
-    level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
-  logger.add(new winston.transports.File({ 
-    filename: path.join(process.cwd(), 'logs', 'combined.log'),
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
+  // Development: File + console logging
+  logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: logFormat,
+    defaultMeta: { service: 'gemini-api' },
+    transports: [
+      new winston.transports.File({ 
+        filename: path.join(process.cwd(), 'logs', 'error.log'), 
+        level: 'error',
+        maxsize: 5242880, // 5MB
+        maxFiles: 5
+      }),
+      new winston.transports.File({ 
+        filename: path.join(process.cwd(), 'logs', 'combined.log'),
+        maxsize: 5242880, // 5MB
+        maxFiles: 5
+      }),
+      new winston.transports.Console({
+        format: consoleFormat
+      })
+    ]
+  });
 }
 
 module.exports = logger;
