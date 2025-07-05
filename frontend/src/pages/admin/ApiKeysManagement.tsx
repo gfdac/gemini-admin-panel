@@ -132,25 +132,6 @@ const ApiKeysManagement: React.FC = () => {
     }
   };
 
-  const rotateKey = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja rotar esta chave? A chave atual será invalidada.')) {
-      return;
-    }
-
-    try {
-      const response = await adminApi.rotateApiKey(id);
-      
-      if (response.status === 'success') {
-        setSuccess('Chave rotacionada com sucesso!');
-        await loadApiKeys(); // Recarregar lista
-      } else {
-        setError(response.message || 'Erro ao rotar chave');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao rotar chave');
-    }
-  };
-
   const deleteKey = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta chave?')) {
       return;
