@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const redisService = require('../config/redis');
 const logger = require('../utils/logger');
 
