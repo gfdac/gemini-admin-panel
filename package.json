@@ -1,0 +1,12 @@
+{
+  "name": "gemini-admin-panel",
+  "version": "1.0.0",
+  "description": "Complete Gemini AI API with Advanced Admin Panel",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "node backend/src/server.js"
+  },
+  "keywords": ["gemini", "ai", "admin", "panel", "react", "nodejs"],
+  "author": "gfdac",
+  "license": "MIT"
+}
