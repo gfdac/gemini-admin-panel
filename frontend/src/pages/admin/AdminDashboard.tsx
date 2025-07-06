@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Alert from '../../components/Alert';
-import { adminApi } from '../../services/api';
+import api, { adminApi } from '../../services/api';
 
 // PROMPT PARA COPILOT: Criar dashboard principal do admin com métricas, estatísticas e navegação
 
@@ -13,8 +13,8 @@ interface DashboardStats {
   totalTokensUsed: number;
   averageResponseTime: number;
   successRate: number;
-  apiKeysCount: number;
-  activeApiKeys: number;
+  geminiKeysCount: number;
+  activeGeminiKeys: number;
   lastUpdated: string;
 }
 
@@ -26,8 +26,8 @@ const AdminDashboard: React.FC = () => {
     totalTokensUsed: 0,
     averageResponseTime: 0,
     successRate: 0,
-    apiKeysCount: 0,
-    activeApiKeys: 0,
+    geminiKeysCount: 0,
+    activeGeminiKeys: 0,
     lastUpdated: new Date().toISOString()
   });
   const [loading, setLoading] = useState(true);
@@ -41,16 +41,37 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await adminApi.getDashboard();
+      // Buscar dados básicos do dashboard
+      const dashboardResponse = await adminApi.getDashboard();
       
-      if (response.status === 'success') {
-        setStats(response.data);
+      // Buscar dados das chaves Gemini
+      const geminiKeysResponse = await api.get('/admin/gemini-keys');
+      
+      if (dashboardResponse.status === 'success' && geminiKeysResponse.data.success) {
+        const dashboardData = dashboardResponse.data;
+        const geminiKeysData = geminiKeysResponse.data.data;
+        
+        // Contar chaves Gemini ativas
+        const totalGeminiKeys = geminiKeysData.keys.length;
+        const activeGeminiKeys = geminiKeysData.keys.filter((key: any) => key.active).length;
+        
+        setStats({
+          totalUsers: dashboardData.users?.total || 0,
+          activeUsers: dashboardData.users?.active || 0,
+          totalRequests: dashboardData.requests?.total || 0,
+          totalTokensUsed: dashboardData.tokens?.total || 0,
+          averageResponseTime: dashboardData.performance?.avgResponseTime || 0,
+          successRate: dashboardData.requests?.successRate || 0,
+          geminiKeysCount: totalGeminiKeys,
+          activeGeminiKeys: activeGeminiKeys,
+          lastUpdated: dashboardData.lastUpdated || new Date().toISOString()
+        });
       } else {
-        setError(response.message || 'Erro ao carregar dados do dashboard');
+        setError('Erro ao carregar dados do dashboard');
       }
     } catch (err: any) {
       console.error('Erro ao buscar dados do dashboard:', err);
-      setError(err.response?.data?.message || 'Erro ao conectar com o servidor');
+      setError(err.response?.data?.error || 'Erro ao conectar com o servidor');
     } finally {
       setLoading(false);
     }
@@ -98,7 +119,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Chaves API',
-      value: `${stats.activeApiKeys}/${stats.apiKeysCount}`,
+      value: `${stats.activeGeminiKeys}/${stats.geminiKeysCount}`,
       icon: '🔑',
       color: 'bg-indigo-500',
       change: '+2'
@@ -118,7 +139,7 @@ const AdminDashboard: React.FC = () => {
       description: 'Configure e monitore chaves do Gemini',
       icon: '🔑',
       color: 'bg-blue-500',
-      onClick: () => navigate('/admin/api-keys')
+      onClick: () => navigate('/admin/gemini-keys')
     },
     {
       title: 'Gerenciar Usuários',
