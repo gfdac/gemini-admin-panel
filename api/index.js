@@ -338,61 +338,127 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/chat', authenticateToken, async (req, res) => {
   try {
     const { prompt, temperature = 0.7, maxOutputTokens = 1000 } = req.body;
-
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       return res.status(400).json({
         status: 'error',
         message: 'Prompt é obrigatório e deve ser uma string não vazia'
       });
     }
-
+    // Simular resposta do Gemini (em produção, use a API real)
     // Obter próxima chave API na rotação
     const geminiApiKey = geminiKeysService.getNextKey();
-    
-    // Simular resposta do Gemini (em produção, use a API real)
-    const response = `Resposta simulada para: "${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}"\n\nEsta é uma resposta simulada da API Gemini. Em produção, aqui seria feita a chamada real para a API do Google Gemini usando a chave: ${geminiApiKey.slice(0, 8)}...`;
-
-    // Registrar request
+    const axios = require('axios');
+    let geminiResponse;
+    let tokensUsed = 0;
+    let model = req.body.model || 'gemini-1.5-flash';
+    try {
+      const apiResponse = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature,
+            maxOutputTokens
+          }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 20000
+        }
+      );
+      // Extrair resposta do Gemini
+      if (
+        apiResponse.data &&
+        apiResponse.data.candidates &&
+        apiResponse.data.candidates.length > 0 &&
+        apiResponse.data.candidates[0].content &&
+        apiResponse.data.candidates[0].content.parts &&
+        apiResponse.data.candidates[0].content.parts.length > 0
+      ) {
+        geminiResponse = apiResponse.data.candidates[0].content.parts[0].text;
+      } else {
+        geminiResponse = '[Sem resposta do Gemini]';
+      }
+      // Tokens usados (se disponível)
+      if (apiResponse.data.usageMetadata && apiResponse.data.usageMetadata.totalTokens) {
+        tokensUsed = apiResponse.data.usageMetadata.totalTokens;
+      } else {
+        tokensUsed = 0;
+      }
+    } catch (error) {
+      console.error('Erro ao chamar Gemini API:', error?.response?.data || error.message);
+      REQUESTS_HISTORY.push({
+        id: Date.now(),
+        userId: req.user.id,
+        prompt: prompt.slice(0, 100),
+        error: error?.response?.data || error.message,
+        timestamp: new Date().toISOString(),
+        success: false
+      });
+      let statusCode = 500;
+      let message = 'Erro ao processar solicitação';
+      if (error.response?.status === 401) {
+        message = 'Chave API inválida';
+        statusCode = 401;
+      } else if (error.response?.status === 403) {
+        message = 'Chave API sem permissão';
+        statusCode = 403;
+      } else if (error.response?.status === 429) {
+        message = 'Limite de uso da chave API excedido';
+        statusCode = 429;
+      }
+      return res.status(statusCode).json({
+        status: 'error',
+        message
+      });
+    }
+    // Registrar request e responder (apenas se sucesso)
     REQUESTS_HISTORY.push({
       id: Date.now(),
       userId: req.user.id,
       prompt: prompt.slice(0, 100),
-      response: response.slice(0, 100),
+      response: geminiResponse ? geminiResponse.slice(0, 100) : '',
       timestamp: new Date().toISOString(),
       success: true,
-      tokensUsed: Math.floor(Math.random() * 500) + 100,
+      tokensUsed,
       geminiApiKey: geminiApiKey.slice(0, 8) + '...'
     });
-
     res.json({
       status: 'success',
       message: 'Conteúdo gerado com sucesso',
       data: {
-        response,
+        response: geminiResponse,
         metadata: {
           temperature,
           maxOutputTokens,
-          tokensUsed: Math.floor(Math.random() * 500) + 100,
-          model: 'gemini-pro',
+          tokensUsed,
+          model,
           apiKeyUsed: geminiApiKey.slice(0, 8) + '...',
           keyRotationEnabled: true,
           totalKeysAvailable: geminiKeysService.getStats().total
         }
       }
     });
-
   } catch (error) {
     console.error('Chat error:', error);
-    
     REQUESTS_HISTORY.push({
       id: Date.now(),
-      userId: req.user.id,
+      userId: req.user?.id,
       prompt: req.body.prompt?.slice(0, 100),
       error: error.message,
       timestamp: new Date().toISOString(),
       success: false
     });
-
     res.status(500).json({
       status: 'error',
       message: 'Erro ao processar solicitação'
@@ -922,5 +988,14 @@ app.use((error, req, res, next) => {
     message: 'Erro interno do servidor'
   });
 });
+
+
+// Padronizar para rodar sempre na porta 3001 se chamado diretamente
+if (require.main === module) {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`🚀 API Gemini rodando em http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;
