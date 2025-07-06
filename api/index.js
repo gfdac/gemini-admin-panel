@@ -91,6 +91,11 @@ class SimpleGeminiKeysService {
     }));
   }
 
+  // Versão síncrona para use no dashboard serverless
+  listKeysSync() {
+    return this.listKeys();
+  }
+
   addKey(keyData) {
     this.initialize();
     
@@ -398,7 +403,9 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
 // Admin Dashboard
 app.get('/api/admin/dashboard', authenticateToken, requireRole('admin'), (req, res) => {
   const usersData = Object.values(USERS);
-  const apiKeysArray = Array.from(API_KEYS.values());
+  
+  // Usar dados das chaves Gemini em vez das API Keys antigas
+  const geminiKeysData = geminiKeysService.listKeysSync(); // Versão síncrona para serverless
   
   const stats = {
     totalUsers: usersData.length,
@@ -408,8 +415,12 @@ app.get('/api/admin/dashboard', authenticateToken, requireRole('admin'), (req, r
     averageResponseTime: 250, // simulado
     successRate: REQUESTS_HISTORY.length > 0 ? 
       Math.round((REQUESTS_HISTORY.filter(r => r.success).length / REQUESTS_HISTORY.length) * 100) : 0,
-    apiKeysCount: apiKeysArray.length,
-    activeApiKeys: apiKeysArray.filter(k => k.active).length,
+    // Dados das chaves Gemini
+    geminiKeysCount: geminiKeysData.length,
+    activeGeminiKeys: geminiKeysData.filter(k => k.active).length,
+    // Manter compatibilidade com versões antigas
+    apiKeysCount: geminiKeysData.length,
+    activeApiKeys: geminiKeysData.filter(k => k.active).length,
     lastUpdated: new Date().toISOString()
   };
 
