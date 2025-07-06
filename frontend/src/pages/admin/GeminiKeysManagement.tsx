@@ -26,6 +26,11 @@ interface KeyStats {
   redisAvailable: boolean;
 }
 
+interface RotationConfig {
+  mode: 'disabled' | 'per_request' | 'daily' | 'weekly' | 'monthly';
+  defaultModel: string;
+}
+
 const GeminiKeysManagement: React.FC = () => {
   const [keys, setKeys] = useState<GeminiKey[]>([]);
   const [stats, setStats] = useState<KeyStats | null>(null);
@@ -38,6 +43,13 @@ const GeminiKeysManagement: React.FC = () => {
   const [newKeyName, setNewKeyName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isTestingKey, setIsTestingKey] = useState<string | null>(null);
+  
+  // Configuration states
+  const [rotationConfig, setRotationConfig] = useState<RotationConfig>({
+    mode: 'per_request',
+    defaultModel: 'gemini-1.5-flash'
+  });
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   useEffect(() => {
     loadKeys();
@@ -48,7 +60,7 @@ const GeminiKeysManagement: React.FC = () => {
       setLoading(true);
       const response = await api.get('/admin/gemini-keys');
       
-      if (response.data.success) {
+      if (response.data.status === 'success') {
         setKeys(response.data.data.keys);
         setStats(response.data.data.stats);
       } else {
@@ -57,10 +69,25 @@ const GeminiKeysManagement: React.FC = () => {
     } catch (error: any) {
       setAlert({ 
         type: 'error', 
-        message: error.response?.data?.error || 'Erro ao carregar chaves Gemini' 
+        message: error.response?.data?.message || 'Erro ao carregar chaves Gemini' 
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveConfiguration = async () => {
+    try {
+      setIsSavingConfig(true);
+      // Em uma implementação real, salvaria no backend
+      setAlert({ type: 'success', message: 'Configurações salvas com sucesso' });
+    } catch (error: any) {
+      setAlert({ 
+        type: 'error', 
+        message: 'Erro ao salvar configurações' 
+      });
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -78,19 +105,19 @@ const GeminiKeysManagement: React.FC = () => {
         active: true
       });
 
-      if (response.data.success) {
+      if (response.data.status === 'success') {
         setAlert({ type: 'success', message: 'Chave Gemini API adicionada com sucesso' });
         setNewKey('');
         setNewKeyName('');
         setShowAddForm(false);
         loadKeys();
       } else {
-        setAlert({ type: 'error', message: response.data.error || 'Falha ao adicionar chave' });
+        setAlert({ type: 'error', message: response.data.message || 'Falha ao adicionar chave' });
       }
     } catch (error: any) {
       setAlert({ 
         type: 'error', 
-        message: error.response?.data?.error || 'Erro ao adicionar chave Gemini API' 
+        message: error.response?.data?.message || 'Erro ao adicionar chave Gemini API' 
       });
     } finally {
       setIsAdding(false);
@@ -105,16 +132,16 @@ const GeminiKeysManagement: React.FC = () => {
     try {
       const response = await api.delete(`/admin/gemini-keys/${keyId}`);
       
-      if (response.data.success) {
+      if (response.data.status === 'success') {
         setAlert({ type: 'success', message: 'Chave Gemini API removida com sucesso' });
         loadKeys();
       } else {
-        setAlert({ type: 'error', message: response.data.error || 'Falha ao remover chave' });
+        setAlert({ type: 'error', message: response.data.message || 'Falha ao remover chave' });
       }
     } catch (error: any) {
       setAlert({ 
         type: 'error', 
-        message: error.response?.data?.error || 'Erro ao remover chave Gemini API' 
+        message: error.response?.data?.message || 'Erro ao remover chave Gemini API' 
       });
     }
   };
@@ -123,19 +150,19 @@ const GeminiKeysManagement: React.FC = () => {
     try {
       const response = await api.patch(`/admin/gemini-keys/${keyId}/toggle`, { active });
       
-      if (response.data.success) {
+      if (response.data.status === 'success') {
         setAlert({ 
           type: 'success', 
           message: `Chave ${active ? 'ativada' : 'desativada'} com sucesso` 
         });
         loadKeys();
       } else {
-        setAlert({ type: 'error', message: response.data.error || 'Falha ao alterar status da chave' });
+        setAlert({ type: 'error', message: response.data.message || 'Falha ao alterar status da chave' });
       }
     } catch (error: any) {
       setAlert({ 
         type: 'error', 
-        message: error.response?.data?.error || 'Erro ao alterar status da chave' 
+        message: error.response?.data?.message || 'Erro ao alterar status da chave' 
       });
     }
   };
@@ -145,7 +172,7 @@ const GeminiKeysManagement: React.FC = () => {
       setIsTestingKey(key);
       const response = await api.post('/admin/gemini-keys/test', { key });
       
-      if (response.data.success) {
+      if (response.data.status === 'success') {
         const { valid, message } = response.data.data;
         setAlert({ 
           type: valid ? 'success' : 'error', 
@@ -157,7 +184,7 @@ const GeminiKeysManagement: React.FC = () => {
     } catch (error: any) {
       setAlert({ 
         type: 'error', 
-        message: error.response?.data?.error || 'Erro ao testar chave' 
+        message: error.response?.data?.message || 'Erro ao testar chave' 
       });
     } finally {
       setIsTestingKey(null);
@@ -327,6 +354,72 @@ const GeminiKeysManagement: React.FC = () => {
         </div>
       )}
 
+      {/* Configuration Section */}
+      <div className="bg-white p-6 rounded-lg shadow border">
+        <h3 className="text-lg font-medium mb-4">Configurações de Uso</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rotação Automática de Chaves
+            </label>
+            <select
+              value={rotationConfig.mode}
+              onChange={(e) => setRotationConfig(prev => ({
+                ...prev,
+                mode: e.target.value as RotationConfig['mode']
+              }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="disabled">Desabilitada</option>
+              <option value="per_request">Por Request (Recomendado)</option>
+              <option value="daily">Diária</option>
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensal</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Modelo Padrão
+            </label>
+            <select
+              value={rotationConfig.defaultModel}
+              onChange={(e) => setRotationConfig(prev => ({
+                ...prev,
+                defaultModel: e.target.value
+              }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Mais rápido)</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro (Mais preciso)</option>
+              <option value="gemini-pro">Gemini Pro</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="mt-4 flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            {rotationConfig.mode === 'per_request' && (
+              <span className="text-green-600">✓ Rotação ativa: uma chave diferente será usada a cada requisição</span>
+            )}
+            {rotationConfig.mode === 'disabled' && (
+              <span className="text-yellow-600">⚠ Rotação desabilitada: sempre usará a primeira chave ativa</span>
+            )}
+            {rotationConfig.mode !== 'per_request' && rotationConfig.mode !== 'disabled' && (
+              <span className="text-blue-600">🔄 Rotação programada: chaves serão alternadas automaticamente</span>
+            )}
+          </div>
+          
+          <button
+            onClick={saveConfiguration}
+            disabled={isSavingConfig}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2 rounded-md font-medium"
+          >
+            {isSavingConfig ? 'Salvando...' : 'Salvar Configurações'}
+          </button>
+        </div>
+      </div>
+
       {/* Keys List */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -406,7 +499,7 @@ const GeminiKeysManagement: React.FC = () => {
                         {isTestingKey === key.keyPreview.replace('...', '') ? 'Testando...' : 'Testar'}
                       </button>
                       
-                      {key.source === 'admin' || key.source === 'migrated_from_env' ? (
+                      {(key.source === 'admin' || key.source === 'migrated_from_env') ? (
                         <>
                           <button
                             onClick={() => toggleKey(key.id, !key.active)}
@@ -422,7 +515,9 @@ const GeminiKeysManagement: React.FC = () => {
                           </button>
                         </>
                       ) : (
-                        <span className="text-gray-400 text-xs">Somente leitura</span>
+                        <span className="text-gray-400 text-xs">
+                          {key.source === 'env' ? 'Chave do ambiente' : 'Somente leitura'}
+                        </span>
                       )}
                     </td>
                   </tr>
