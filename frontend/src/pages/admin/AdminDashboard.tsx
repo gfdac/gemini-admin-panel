@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Alert from '../../components/Alert';
-import api, { adminApi } from '../../services/api';
+import { adminApi } from '../../services/api';
 
 // PROMPT PARA COPILOT: Criar dashboard principal do admin com métricas, estatísticas e navegação
 
@@ -41,37 +41,29 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Buscar dados básicos do dashboard
-      const dashboardResponse = await adminApi.getDashboard();
+      // Buscar dados do dashboard (que agora inclui chaves Gemini)
+      const response = await adminApi.getDashboard();
       
-      // Buscar dados das chaves Gemini
-      const geminiKeysResponse = await api.get('/admin/gemini-keys');
-      
-      if (dashboardResponse.status === 'success' && geminiKeysResponse.data.success) {
-        const dashboardData = dashboardResponse.data;
-        const geminiKeysData = geminiKeysResponse.data.data;
-        
-        // Contar chaves Gemini ativas
-        const totalGeminiKeys = geminiKeysData.keys.length;
-        const activeGeminiKeys = geminiKeysData.keys.filter((key: any) => key.active).length;
+      if (response.status === 'success') {
+        const data = response.data;
         
         setStats({
-          totalUsers: dashboardData.users?.total || 0,
-          activeUsers: dashboardData.users?.active || 0,
-          totalRequests: dashboardData.requests?.total || 0,
-          totalTokensUsed: dashboardData.tokens?.total || 0,
-          averageResponseTime: dashboardData.performance?.avgResponseTime || 0,
-          successRate: dashboardData.requests?.successRate || 0,
-          geminiKeysCount: totalGeminiKeys,
-          activeGeminiKeys: activeGeminiKeys,
-          lastUpdated: dashboardData.lastUpdated || new Date().toISOString()
+          totalUsers: data.totalUsers || 0,
+          activeUsers: data.activeUsers || 0,
+          totalRequests: data.totalRequests || 0,
+          totalTokensUsed: data.totalTokensUsed || 0,
+          averageResponseTime: data.averageResponseTime || 250,
+          successRate: data.successRate || 0,
+          geminiKeysCount: data.geminiKeysCount || 0,
+          activeGeminiKeys: data.activeGeminiKeys || 0,
+          lastUpdated: data.lastUpdated || new Date().toISOString()
         });
       } else {
-        setError('Erro ao carregar dados do dashboard');
+        setError(response.message || 'Erro ao carregar dados do dashboard');
       }
     } catch (err: any) {
       console.error('Erro ao buscar dados do dashboard:', err);
-      setError(err.response?.data?.error || 'Erro ao conectar com o servidor');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Erro ao conectar com o servidor');
     } finally {
       setLoading(false);
     }

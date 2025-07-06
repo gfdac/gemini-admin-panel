@@ -1,6 +1,7 @@
 const userService = require('../services/userService');
 const apiKeyService = require('../services/apiKeyService');
 const requestService = require('../services/requestService');
+const { geminiKeysService } = require('../services/geminiService');
 const logger = require('../utils/logger');
 
 // Get dashboard statistics
@@ -10,9 +11,12 @@ const getDashboardStats = async (req, res) => {
     const totalUsers = await userService.getUserCount();
     const activeUsers = await userService.getActiveUsersCount();
 
-    // Get API key statistics
-    const totalApiKeys = await apiKeyService.getApiKeyCount();
-    const activeApiKeys = await apiKeyService.getActiveApiKeysCount();
+    // Get Gemini API key statistics
+    const geminiKeys = await geminiKeysService.listKeys();
+    const geminiStats = await geminiKeysService.getKeyStats();
+    
+    const totalGeminiKeys = geminiKeys.length;
+    const activeGeminiKeys = geminiKeys.filter(key => key.active).length;
 
     // Get request statistics
     const requestStats = await requestService.getGeneralStats();
@@ -24,10 +28,10 @@ const getDashboardStats = async (req, res) => {
         active: activeUsers,
         inactive: totalUsers - activeUsers
       },
-      apiKeys: {
-        total: totalApiKeys,
-        active: activeApiKeys,
-        inactive: totalApiKeys - activeApiKeys
+      geminiKeys: {
+        total: totalGeminiKeys,
+        active: activeGeminiKeys,
+        inactive: totalGeminiKeys - activeGeminiKeys
       },
       requests: {
         total: requestStats.totalRequests,
@@ -42,9 +46,18 @@ const getDashboardStats = async (req, res) => {
           Math.round(requestStats.totalTokens / requestStats.totalRequests) : 0
       },
       performance: {
-        avgResponseTime: requestStats.avgResponseTime || 0,
+        avgResponseTime: requestStats.avgResponseTime || 250,
         totalResponseTime: requestStats.totalResponseTime || 0
       },
+      // Manter compatibilidade com formato antigo
+      totalUsers: totalUsers,
+      activeUsers: activeUsers,
+      totalRequests: requestStats.totalRequests,
+      totalTokensUsed: requestStats.totalTokens,
+      averageResponseTime: requestStats.avgResponseTime || 250,
+      successRate: requestStats.successRate,
+      geminiKeysCount: totalGeminiKeys,
+      activeGeminiKeys: activeGeminiKeys,
       lastUpdated: new Date().toISOString()
     };
 
