@@ -26,6 +26,7 @@ const {
 } = require('../controllers/adminController');
 const {
   listKeys,
+  getKey,
   addKey,
   removeKey,
   toggleKey,
@@ -129,6 +130,7 @@ router.get('/admin/stats', requireRole('admin'), getSystemStats);
 
 // Gemini API Keys management routes (Admin only)
 router.get('/admin/gemini-keys', requireRole('admin'), listKeys);
+router.get('/admin/gemini-keys/:keyId', requireRole('admin'), getKey);
 router.post('/admin/gemini-keys', requireRole('admin'), addKey);
 router.delete('/admin/gemini-keys/:keyId', requireRole('admin'), removeKey);
 router.patch('/admin/gemini-keys/:keyId/toggle', requireRole('admin'), toggleKey);

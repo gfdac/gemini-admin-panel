@@ -417,6 +417,57 @@ class GeminiKeysService {
       throw error;
     }
   }
+
+  /**
+   * Busca uma chave específica com a chave completa
+   */
+  async getKey(keyId) {
+    try {
+      let allKeys = [];
+      
+      // Buscar do Redis
+      if (this.isRedisAvailable) {
+        const redisKeys = await this.getKeysFromRedis();
+        allKeys = [...redisKeys];
+      }
+      
+      // Adicionar chaves de fallback não duplicadas
+      for (const fallbackKey of this.fallbackKeys) {
+        const exists = allKeys.find(k => k.key === fallbackKey.key);
+        if (!exists) {
+          allKeys.push({
+            ...fallbackKey,
+            source: 'fallback_only'
+          });
+        }
+      }
+      
+      // Encontrar a chave específica
+      const key = allKeys.find(k => k.id === keyId);
+      
+      if (!key) {
+        throw new Error('Key not found');
+      }
+      
+      return {
+        id: key.id,
+        name: key.name || `API Key`,
+        active: key.active,
+        source: key.source,
+        createdAt: key.createdAt,
+        lastUsed: key.lastUsed,
+        requestCount: key.requestCount || 0,
+        // Retornar a chave completa para operações específicas (como teste)
+        key: key.key
+      };
+    } catch (error) {
+      logger.error('Failed to get key', {
+        keyId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance

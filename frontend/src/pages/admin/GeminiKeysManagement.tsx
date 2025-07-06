@@ -178,17 +178,31 @@ const GeminiKeysManagement: React.FC = () => {
         return;
       }
       
-      // Para chaves do ambiente, precisamos usar um endpoint especial que pode acessar a chave completa
+      // Se for uma chave de fallback, usar a própria chave preview (que na verdade é a chave completa)
+      let keyToSend = keyToTest.keyPreview;
+      
+      // Se a chave está truncada (preview), precisamos informar o backend para buscar a chave real
+      if (keyToTest.keyPreview.includes('...')) {
+        // Para chaves do Redis/admin, enviar o ID para o backend buscar
+        const response = await api.get(`/admin/gemini-keys/${keyId}`);
+        if (response.data.success) {
+          keyToSend = response.data.data.key;
+        } else {
+          setAlert({ type: 'error', message: 'Não foi possível acessar a chave completa' });
+          return;
+        }
+      }
+      
+      // Enviar a chave real para teste
       const response = await api.post('/admin/gemini-keys/test', { 
-        keyId: keyId,
-        source: keyToTest.source 
+        key: keyToSend
       });
       
-      if (response.data.status === 'success') {
+      if (response.data.success) {
         const { valid, message } = response.data.data;
         setAlert({ 
           type: valid ? 'success' : 'error', 
-          message: `Teste da chave: ${message}` 
+          message: valid ? `✅ ${message}` : `❌ ${message}` 
         });
       } else {
         setAlert({ type: 'error', message: 'Falha ao testar chave' });
@@ -196,7 +210,7 @@ const GeminiKeysManagement: React.FC = () => {
     } catch (error: any) {
       setAlert({ 
         type: 'error', 
-        message: error.response?.data?.message || 'Erro ao testar chave' 
+        message: error.response?.data?.error || 'Erro ao testar chave' 
       });
     } finally {
       setIsTestingKey(null);

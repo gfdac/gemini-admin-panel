@@ -291,11 +291,62 @@ const testKey = async (req, res) => {
   }
 };
 
+// Buscar uma chave específica
+const getKey = async (req, res) => {
+  try {
+    const { keyId } = req.params;
+    
+    if (!keyId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Key ID is required'
+      });
+    }
+    
+    const key = await geminiKeysService.getKey(keyId);
+    
+    if (!key) {
+      return res.status(404).json({
+        success: false,
+        error: 'API key not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: key
+    });
+  } catch (error) {
+    logger.error('Failed to get Gemini key', {
+      error: error.message,
+      keyId: req.params.keyId,
+      user: req.user?.id
+    });
+    
+    let statusCode = 500;
+    let errorMessage = 'Failed to retrieve API key';
+    
+    if (error.message.includes('not found')) {
+      statusCode = 404;
+      errorMessage = 'API key not found';
+    } else if (error.message.includes('Redis not available')) {
+      statusCode = 503;
+      errorMessage = 'Key management service unavailable';
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+};
+
 module.exports = {
   listKeys,
   addKey,
   removeKey,
   toggleKey,
   getKeyStats,
-  testKey
+  testKey,
+  getKey
 };

@@ -26,7 +26,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/admin', icon: HomeIcon, description: 'Visão geral do sistema' },
-  { name: 'Chaves API', href: '/admin/api-keys', icon: KeyIcon, description: 'Gerenciar chaves de API' },
+  // { name: 'Chaves API', href: '/admin/api-keys', icon: KeyIcon, description: 'Gerenciar chaves de API' },
   { name: 'Chaves Gemini', href: '/admin/gemini-keys', icon: KeyIcon, description: 'Gerenciar chaves Gemini API' },
   { name: 'Usuários', href: '/admin/users', icon: UsersIcon, description: 'Gerenciar usuários' },
   { name: 'Histórico', href: '/admin/requests', icon: ClockIcon, description: 'Histórico de requisições' },
