@@ -258,13 +258,20 @@ app.get('/api/admin/dashboard', authenticateToken, requireRole('admin'), (req, r
 // Users Management
 app.get('/api/admin/users', authenticateToken, requireRole('admin'), (req, res) => {
   const users = Object.values(USERS).map(user => ({
-    id: user.id,
+    id: user.id.toString(),
     username: user.username,
+    email: `${user.username}@example.com`,
     role: user.role,
+    status: user.active ? 'active' : 'inactive',
     permissions: user.permissions,
     active: user.active,
     createdAt: '2024-01-01T00:00:00.000Z',
-    lastLogin: new Date().toISOString()
+    lastLogin: new Date().toISOString(),
+    totalRequests: Math.floor(Math.random() * 1000) + 100,
+    tokensUsed: Math.floor(Math.random() * 10000) + 1000,
+    plan: user.role === 'admin' ? 'enterprise' : 'free',
+    apiLimit: user.role === 'admin' ? 10000 : 1000,
+    apiUsed: Math.floor(Math.random() * 800) + 100
   }));
 
   res.json({
