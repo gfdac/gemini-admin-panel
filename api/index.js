@@ -232,24 +232,19 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
 
 // Admin Dashboard
 app.get('/api/admin/dashboard', authenticateToken, requireRole('admin'), (req, res) => {
+  const usersData = Object.values(USERS);
+  const apiKeysArray = Array.from(API_KEYS.values());
+  
   const stats = {
-    users: {
-      total: Object.keys(USERS).length,
-      active: Object.values(USERS).filter(u => u.active).length,
-      inactive: Object.values(USERS).filter(u => !u.active).length
-    },
-    apiKeys: {
-      total: API_KEYS.size,
-      active: Array.from(API_KEYS.values()).filter(k => k.active).length,
-      inactive: Array.from(API_KEYS.values()).filter(k => !k.active).length
-    },
-    requests: {
-      total: REQUESTS_HISTORY.length,
-      successful: REQUESTS_HISTORY.filter(r => r.success).length,
-      failed: REQUESTS_HISTORY.filter(r => !r.success).length,
-      successRate: REQUESTS_HISTORY.length > 0 ? 
-        Math.round((REQUESTS_HISTORY.filter(r => r.success).length / REQUESTS_HISTORY.length) * 100) : 0
-    },
+    totalUsers: usersData.length,
+    activeUsers: usersData.filter(u => u.active).length,
+    totalRequests: REQUESTS_HISTORY.length,
+    totalTokensUsed: REQUESTS_HISTORY.reduce((sum, r) => sum + (r.tokensUsed || 0), 0),
+    averageResponseTime: 250, // simulado
+    successRate: REQUESTS_HISTORY.length > 0 ? 
+      Math.round((REQUESTS_HISTORY.filter(r => r.success).length / REQUESTS_HISTORY.length) * 100) : 0,
+    apiKeysCount: apiKeysArray.length,
+    activeApiKeys: apiKeysArray.filter(k => k.active).length,
     lastUpdated: new Date().toISOString()
   };
 
