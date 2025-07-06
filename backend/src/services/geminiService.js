@@ -1,9 +1,6 @@
 const axios = require('axios');
-const { config } = require('../config/env');
 const logger = require('../utils/logger');
-
-// PROMPT PARA COPILOT: No src/services/geminiService.js, crie a função assíncrona callGeminiAPI(prompt) 
-// que usa axios.post para a API do Gemini e retorna a resposta. Inclua tratamento de erros e logs.
+const geminiKeysService = require('./geminiKeysService');
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -13,6 +10,13 @@ const callGeminiAPI = async (prompt, options = {}) => {
       promptLength: prompt.length,
       options 
     });
+
+    // Obter próxima chave disponível (Redis primeiro, fallback depois)
+    const apiKey = await geminiKeysService.getNextKey();
+    
+    if (!apiKey) {
+      throw new Error('No Gemini API key available');
+    }
 
     const requestBody = {
       contents: [
@@ -33,7 +37,7 @@ const callGeminiAPI = async (prompt, options = {}) => {
     };
 
     const response = await axios.post(
-      `${GEMINI_API_BASE_URL}/gemini-1.5-flash:generateContent?key=${config.geminiApiKey}`,
+      `${GEMINI_API_BASE_URL}/gemini-1.5-flash:generateContent?key=${apiKey}`,
       requestBody,
       {
         headers: {
@@ -131,7 +135,21 @@ const testGeminiConnection = async () => {
   }
 };
 
+// Function to initialize the keys service
+const initializeKeysService = async () => {
+  try {
+    await geminiKeysService.initialize();
+    logger.info('Gemini keys service initialized successfully');
+    return true;
+  } catch (error) {
+    logger.error('Failed to initialize Gemini keys service', { error: error.message });
+    return false;
+  }
+};
+
 module.exports = {
   callGeminiAPI,
-  testGeminiConnection
+  testGeminiConnection,
+  initializeKeysService,
+  geminiKeysService
 };

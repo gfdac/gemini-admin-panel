@@ -44,6 +44,7 @@ const { config } = require('./config/env');
 const logger = require('./utils/logger');
 const routes = require('./routes');
 const { initializeDefaultUsers } = require('./controllers/authController');
+const { initializeKeysService } = require('./services/geminiService');
 
 // Import Redis conditionally to avoid errors if not available
 let redisService = null;
@@ -103,6 +104,10 @@ const initializeApp = async () => {
       logger.warn('Redis not available, skipping Redis initialization');
     }
 
+    // Initialize Gemini keys service (works with or without Redis)
+    await initializeKeysService();
+    logger.info('Gemini keys service initialized');
+
   } catch (error) {
     logger.error('Failed to initialize app', {
       error: error.message,
@@ -114,7 +119,7 @@ const initializeApp = async () => {
       logger.error('Production mode: exiting due to initialization failure');
       process.exit(1);
     } else {
-      logger.warn('Continuing without Redis in development mode');
+      logger.warn('Continuing with fallback configuration in development mode');
     }
   }
 };

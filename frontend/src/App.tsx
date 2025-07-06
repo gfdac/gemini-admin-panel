@@ -11,6 +11,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ApiKeysManagement from './pages/admin/ApiKeysManagement';
 import ApiKeysManagementAdvanced from './pages/admin/ApiKeysManagementAdvanced';
+import GeminiKeysManagement from './pages/admin/GeminiKeysManagement';
 import UsersManagement from './pages/admin/UsersManagement';
 import UsersManagementAdvanced from './pages/admin/UsersManagementAdvanced';
 import RequestsHistory from './pages/admin/RequestsHistory';
@@ -76,6 +77,7 @@ const AppRoutes: React.FC = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="api-keys" element={<ApiKeysManagement />} />
         <Route path="api-keys-advanced" element={<ApiKeysManagementAdvanced />} />
+        <Route path="gemini-keys" element={<GeminiKeysManagement />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="users-advanced" element={<UsersManagementAdvanced />} />
         <Route path="requests" element={<RequestsHistory />} />

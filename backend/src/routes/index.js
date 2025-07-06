@@ -24,6 +24,14 @@ const {
   getRequestsHistory,
   getSystemStats
 } = require('../controllers/adminController');
+const {
+  listKeys,
+  addKey,
+  removeKey,
+  toggleKey,
+  getKeyStats,
+  testKey
+} = require('../controllers/geminiKeysController');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -119,6 +127,14 @@ router.delete('/admin/keys/:keyId', requireRole('admin'), deleteApiKey);
 router.get('/admin/requests', requireRole('admin'), getRequestsHistory);
 router.get('/admin/stats', requireRole('admin'), getSystemStats);
 
+// Gemini API Keys management routes (Admin only)
+router.get('/admin/gemini-keys', requireRole('admin'), listKeys);
+router.post('/admin/gemini-keys', requireRole('admin'), addKey);
+router.delete('/admin/gemini-keys/:keyId', requireRole('admin'), removeKey);
+router.patch('/admin/gemini-keys/:keyId/toggle', requireRole('admin'), toggleKey);
+router.get('/admin/gemini-keys/stats', requireRole('admin'), getKeyStats);
+router.post('/admin/gemini-keys/test', requireRole('admin'), testKey);
+
 // API documentation route
 router.get('/docs', (req, res) => {
   res.json({
@@ -139,7 +155,23 @@ router.get('/docs', (req, res) => {
         'POST /api/tokens': 'Generate a new API token',
         'GET /api/tokens': 'List all API tokens',
         'DELETE /api/tokens/:tokenId': 'Revoke an API token',
-        'GET /api/tokens/stats': 'Get statistics of API token usage'
+        'GET /api/tokens/stats': 'Get statistics of API token usage',
+        'GET /api/admin/dashboard': 'Get admin dashboard statistics',
+        'GET /api/admin/users': 'List all users',
+        'POST /api/admin/users': 'Create a new user',
+        'GET /api/admin/users/:userId': 'Get user details',
+        'PUT /api/admin/users/:userId': 'Update user',
+        'DELETE /api/admin/users/:userId': 'Delete user',
+        'GET /api/admin/keys': 'List API keys',
+        'POST /api/admin/keys': 'Create API key',
+        'GET /api/admin/requests': 'Get requests history',
+        'GET /api/admin/stats': 'Get system statistics',
+        'GET /api/admin/gemini-keys': 'List Gemini API keys',
+        'POST /api/admin/gemini-keys': 'Add new Gemini API key',
+        'DELETE /api/admin/gemini-keys/:keyId': 'Remove Gemini API key',
+        'PATCH /api/admin/gemini-keys/:keyId/toggle': 'Toggle Gemini API key active status',
+        'GET /api/admin/gemini-keys/stats': 'Get Gemini API keys statistics',
+        'POST /api/admin/gemini-keys/test': 'Test Gemini API key connectivity'
       }
     },
     authentication: {
