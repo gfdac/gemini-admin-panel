@@ -156,6 +156,12 @@ class SimpleGeminiKeysService {
       redisAvailable: false // Simulação para serverless
     };
   }
+
+  getFullKeyById(keyId) {
+    this.initialize();
+    const key = this.keys.find(k => k.id === keyId);
+    return key ? key.key : null;
+  }
 }
 
 const geminiKeysService = new SimpleGeminiKeysService();
@@ -768,9 +774,23 @@ app.get('/api/admin/gemini-keys/stats', authenticateToken, requireRole('admin'),
 
 app.post('/api/admin/gemini-keys/test', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
-    const { key } = req.body;
+    const { key, keyId, source } = req.body;
     
-    if (!key || !key.trim()) {
+    let keyToTest = key;
+    
+    // Se foi fornecido keyId, buscar a chave pelo ID
+    if (keyId && !key) {
+      keyToTest = geminiKeysService.getFullKeyById(keyId);
+      
+      if (!keyToTest) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Chave não encontrada'
+        });
+      }
+    }
+    
+    if (!keyToTest || !keyToTest.trim()) {
       return res.status(400).json({
         status: 'error',
         message: 'Chave API é obrigatória para teste'
@@ -780,7 +800,7 @@ app.post('/api/admin/gemini-keys/test', authenticateToken, requireRole('admin'),
     // Fazer uma chamada de teste diretamente com a chave fornecida
     const axios = require('axios');
     const testResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key.trim()}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${keyToTest.trim()}`,
       {
         contents: [
           {

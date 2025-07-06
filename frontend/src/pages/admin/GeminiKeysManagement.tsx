@@ -167,10 +167,22 @@ const GeminiKeysManagement: React.FC = () => {
     }
   };
 
-  const testKey = async (key: string) => {
+  const testKey = async (keyId: string) => {
     try {
-      setIsTestingKey(key);
-      const response = await api.post('/admin/gemini-keys/test', { key });
+      setIsTestingKey(keyId);
+      
+      // Buscar a chave completa do backend para teste
+      const keyToTest = keys.find(k => k.id === keyId);
+      if (!keyToTest) {
+        setAlert({ type: 'error', message: 'Chave não encontrada' });
+        return;
+      }
+      
+      // Para chaves do ambiente, precisamos usar um endpoint especial que pode acessar a chave completa
+      const response = await api.post('/admin/gemini-keys/test', { 
+        keyId: keyId,
+        source: keyToTest.source 
+      });
       
       if (response.data.status === 'success') {
         const { valid, message } = response.data.data;
@@ -492,11 +504,11 @@ const GeminiKeysManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       <button
-                        onClick={() => testKey(key.keyPreview.replace('...', ''))}
-                        disabled={isTestingKey === key.keyPreview.replace('...', '')}
+                        onClick={() => testKey(key.id)}
+                        disabled={isTestingKey === key.id}
                         className="text-blue-600 hover:text-blue-900 disabled:text-blue-400"
                       >
-                        {isTestingKey === key.keyPreview.replace('...', '') ? 'Testando...' : 'Testar'}
+                        {isTestingKey === key.id ? 'Testando...' : 'Testar'}
                       </button>
                       
                       {(key.source === 'admin' || key.source === 'migrated_from_env') ? (
