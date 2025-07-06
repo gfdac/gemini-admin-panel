@@ -98,7 +98,7 @@ const GeminiKeysManagement: React.FC = () => {
   };
 
   const removeKey = async (keyId: string) => {
-    if (!confirm('Tem certeza que deseja remover esta chave Gemini API?')) {
+    if (!window.confirm('Tem certeza que deseja remover esta chave Gemini API?')) {
       return;
     }
 
