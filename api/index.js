@@ -13,7 +13,7 @@ const USERS = {
   admin: {
     id: 1,
     username: 'admin',
-    password: '$2a$10$N9qo8uLOickgx2ZMRZoMye.IU7MuJ7t24TeTWt9FJfKQx4zWHm6b2', // admin123
+    password: '$2a$10$c6tTc/nFL7ohsqruzpAxL.zGT5rQEW3u/mJibPulVhr/YQTbXuVE6', // admin123
     role: 'admin',
     permissions: ['admin', 'gemini', 'tokens'],
     active: true
@@ -21,7 +21,7 @@ const USERS = {
   user: {
     id: 2,
     username: 'user',
-    password: '$2a$10$4e3KZzfcLJ5JfqZJrqCVuu1LJr9C5H4sK9zO4pQ7kZfH5eZy8F1Ay', // user123
+    password: '$2a$10$yJmHXuhHHTZWrXzNOjnXEuT/r3asCWzjMS8k9x5vAqFMlxJo7RwHW', // user123
     role: 'user',
     permissions: ['gemini'],
     active: true
