@@ -7,43 +7,27 @@ import { adminApi } from '../../services/api';
 // PROMPT PARA COPILOT: Criar dashboard principal do admin com métricas, estatísticas e navegação
 
 interface DashboardStats {
-  users: {
-    total: number;
-    active: number;
-    inactive: number;
-  };
-  apiKeys: {
-    total: number;
-    active: number;
-    inactive: number;
-  };
-  requests: {
-    total: number;
-    successful: number;
-    failed: number;
-    successRate: number;
-  };
+  totalUsers: number;
+  activeUsers: number;
+  totalRequests: number;
+  totalTokensUsed: number;
+  averageResponseTime: number;
+  successRate: number;
+  apiKeysCount: number;
+  activeApiKeys: number;
   lastUpdated: string;
 }
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
-    users: {
-      total: 0,
-      active: 0,
-      inactive: 0
-    },
-    apiKeys: {
-      total: 0,
-      active: 0,
-      inactive: 0
-    },
-    requests: {
-      total: 0,
-      successful: 0,
-      failed: 0,
-      successRate: 0
-    },
+    totalUsers: 0,
+    activeUsers: 0,
+    totalRequests: 0,
+    totalTokensUsed: 0,
+    averageResponseTime: 0,
+    successRate: 0,
+    apiKeysCount: 0,
+    activeApiKeys: 0,
     lastUpdated: new Date().toISOString()
   });
   const [loading, setLoading] = useState(true);
@@ -79,42 +63,42 @@ const AdminDashboard: React.FC = () => {
   const statsCards = [
     {
       title: 'Total de Usuários',
-      value: stats.users.total.toLocaleString(),
+      value: stats.totalUsers.toLocaleString(),
       icon: '👥',
       color: 'bg-blue-500',
       change: '+12%'
     },
     {
       title: 'Usuários Ativos',
-      value: stats.users.active.toLocaleString(),
+      value: stats.activeUsers.toLocaleString(),
       icon: '🟢',
       color: 'bg-green-500',
       change: '+5%'
     },
     {
       title: 'Total de Requisições',
-      value: stats.requests.total.toLocaleString(),
+      value: stats.totalRequests.toLocaleString(),
       icon: '📊',
       color: 'bg-purple-500',
       change: '+23%'
     },
     {
       title: 'Taxa de Sucesso',
-      value: `${stats.requests.successRate}%`,
+      value: `${stats.successRate}%`,
       icon: '✅',
       color: 'bg-green-600',
       change: '+0.5%'
     },
     {
       title: 'Tempo de Resposta',
-      value: '250ms',
+      value: `${stats.averageResponseTime}ms`,
       icon: '⚡',
       color: 'bg-yellow-500',
       change: '-0.2s'
     },
     {
       title: 'Chaves API',
-      value: `${stats.apiKeys.active}/${stats.apiKeys.total}`,
+      value: `${stats.activeApiKeys}/${stats.apiKeysCount}`,
       icon: '🔑',
       color: 'bg-indigo-500',
       change: '+2'
@@ -261,7 +245,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="w-2 h-2 rounded-full mr-3 bg-green-500"></div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Requisições Bem-sucedidas</p>
-                    <p className="text-xs text-gray-500">{stats.requests.successful} requisições</p>
+                    <p className="text-xs text-gray-500">{stats.totalRequests - (stats.totalRequests * (100 - stats.successRate) / 100)} requisições</p>
                   </div>
                 </div>
                 <span className="text-xs text-gray-500">Hoje</span>
@@ -271,7 +255,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="w-2 h-2 rounded-full mr-3 bg-red-500"></div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Requisições com Falha</p>
-                    <p className="text-xs text-gray-500">{stats.requests.failed} requisições</p>
+                    <p className="text-xs text-gray-500">{stats.totalRequests * (100 - stats.successRate) / 100} requisições</p>
                   </div>
                 </div>
                 <span className="text-xs text-gray-500">Hoje</span>
