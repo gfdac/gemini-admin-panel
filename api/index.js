@@ -13,9 +13,17 @@ const USERS = {
   admin: {
     id: 1,
     username: 'admin',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+    password: '$2a$10$N9qo8uLOickgx2ZMRZoMye.IU7MuJ7t24TeTWt9FJfKQx4zWHm6b2', // admin123
     role: 'admin',
     permissions: ['admin', 'gemini', 'tokens'],
+    active: true
+  },
+  user: {
+    id: 2,
+    username: 'user',
+    password: '$2a$10$4e3KZzfcLJ5JfqZJrqCVuu1LJr9C5H4sK9zO4pQ7kZfH5eZy8F1Ay', // user123
+    role: 'user',
+    permissions: ['gemini'],
     active: true
   }
 };
@@ -44,7 +52,11 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
+  console.log('Auth middleware - Header:', authHeader ? 'Bearer ***' : 'None');
+  console.log('Auth middleware - Token present:', !!token);
+
   if (!token) {
+    console.log('Auth middleware - No token provided');
     return res.status(401).json({
       status: 'error',
       message: 'Token de acesso requerido'
@@ -53,11 +65,13 @@ const authenticateToken = (req, res, next) => {
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('Auth middleware - Token verification failed:', err.message);
       return res.status(403).json({
         status: 'error',
         message: 'Token inválido'
       });
     }
+    console.log('Auth middleware - User authenticated:', user.username, user.role);
     req.user = user;
     next();
   });
@@ -143,7 +157,8 @@ app.post('/api/login', async (req, res) => {
           username: user.username,
           role: user.role,
           permissions: user.permissions
-        }
+        },
+        expiresIn: '24h'
       }
     });
 
